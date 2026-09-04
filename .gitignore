@@ -1,0 +1,14 @@
+# Zig build cache and output
+.zig-cache/
+zig-out/
+*/.zig-cache/
+*/zig-out/
+
+# Log files
+*.log
+*/*.log
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+*.swp
