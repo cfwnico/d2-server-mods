@@ -102,9 +102,9 @@ pub fn hookPacket0x33(new_handler: *const anyopaque) bool {
 /// [8]: Color (0x04 = Gold / Unique)
 /// [9]: 0x00
 /// [10]: 0x00 (Null-terminated empty sender name)
-/// [11..]: Null-terminated message string
-/// Total packet length = 10 (header) + 1 (sender null) + msg_len + 1 (msg null) = 12 + msg_len
-pub fn sendServerMessage(pPlayer: usize, msg: []const u8) void {
+/// Send in-game server announcement message via Packet 0x26
+/// Color codes: 0x00=White, 0x01=Red, 0x02=Green, 0x03=Blue, 0x04=Gold, 0x08=Orange, 0x09=Yellow
+pub fn sendServerMessage(pPlayer: usize, msg: []const u8, color: u8) void {
     const pPlayerUnit: *const UnitAny = @ptrFromInt(pPlayer);
     const pUnitData = pPlayerUnit.pUnitData orelse return;
     const pClient: usize = @as(*align(1) const usize, @ptrFromInt(@intFromPtr(pUnitData) + 0x9C)).*;
@@ -115,10 +115,10 @@ pub fn sendServerMessage(pPlayer: usize, msg: []const u8) void {
 
     buf[0] = 0x26; // Packet 0x26
     buf[1] = 0x04; // Chat type 4: System Announcement (chat window)
-    buf[2] = 0x00;
+    buf[2] = color;
     buf[3] = 0x00;
     // bytes 4..7: unit_id = 0
-    buf[8] = 0x04; // Color: 4 = Gold / Unique
+    buf[8] = color;
     buf[9] = 0x00;
     buf[10] = 0x00; // Empty sender name ("\0")
 
