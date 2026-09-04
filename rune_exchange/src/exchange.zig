@@ -55,25 +55,30 @@ pub fn logMsg(comptime fmt: []const u8, args: anytype) void {
     }
 }
 
-// 170 elite base codes extracted from authoritative MPQ TXT data (weapons.txt, armor.txt, jewelry)
+// 170 elite base codes extracted from authoritative MPQ TXT data (weapons.txt, armor.txt, misc.txt)
 pub const elite_codes = [_][4]u8{
-    "6bs ".*, "6cb ".*, "6cs ".*, "6hb ".*, "6hx ".*, "6l7 ".*, "6lb ".*, "6ls ".*, "6lw ".*, "6lx ".*,
-    "6mx ".*, "6rx ".*, "6s7 ".*, "6sb ".*, "6ss ".*, "6sw ".*, "6ws ".*, "72a ".*, "72h ".*, "7ar ".*,
-    "7ax ".*, "7b7 ".*, "7b8 ".*, "7ba ".*, "7bk ".*, "7bl ".*, "7br ".*, "7bs ".*, "7bt ".*, "7bw ".*,
-    "7cl ".*, "7cm ".*, "7cr ".*, "7cs ".*, "7dg ".*, "7di ".*, "7fb ".*, "7fc ".*, "7fl ".*, "7fo ".*,
-    "7ga ".*, "7gd ".*, "7gi ".*, "7gl ".*, "7gm ".*, "7gs ".*, "7gw ".*, "7h7 ".*, "7ha ".*, "7ja ".*,
-    "7kr ".*, "7la ".*, "7ls ".*, "7lw ".*, "7m7 ".*, "7ma ".*, "7mp ".*, "7o7 ".*, "7pa ".*, "7p7 ".*,
-    "7pi ".*, "7qs ".*, "7s7 ".*, "7s8 ".*, "7sb ".*, "7sc ".*, "7sm ".*, "7sp ".*, "7sr ".*, "7ss ".*,
-    "7st ".*, "7ta ".*, "7tr ".*, "7ts ".*, "7vo ".*, "7wa ".*, "7wb ".*, "7wc ".*, "7wd ".*, "7wh ".*,
-    "7ws ".*, "7xf ".*, "7yc ".*, "amu ".*, "ci3 ".*, "ci4 ".*, "cm1 ".*, "cm2 ".*, "cm3 ".*, "dr6 ".*,
-    "dr7 ".*, "dr8 ".*, "dr9 ".*, "dra ".*, "drb ".*, "drc ".*, "drd ".*, "dre ".*, "drf ".*, "ea1 ".*,
-    "ea2 ".*, "ea3 ".*, "ea4 ".*, "ea5 ".*, "jew ".*, "nea ".*, "neb ".*, "neg ".*, "nef ".*, "ne8 ".*,
-    "ne9 ".*, "pa6 ".*, "pa7 ".*, "pa8 ".*, "pa9 ".*, "paa ".*, "pab ".*, "pac ".*, "pad ".*, "pae ".*,
-    "paf ".*, "rin ".*, "ucl ".*, "uh9 ".*, "uhb ".*, "uhc ".*, "uhg ".*, "uhl ".*, "uhm ".*, "uhn ".*,
-    "uap ".*, "uul ".*, "uow ".*, "urg ".*, "ulc ".*, "uuc ".*, "umb ".*, "upk ".*, "uld ".*, "usk ".*,
-    "uto ".*, "utb ".*, "utc ".*, "uth ".*, "utg ".*, "uts ".*, "utu ".*, "ung ".*, "urg ".*, "uts ".*,
-    "uvc ".*, "uvg ".*, "uwc ".*, "uwh ".*, "uwi ".*, "uwl ".*, "uwm ".*, "uwn ".*, "uwp ".*, "uww ".*,
-    "xar ".*, "xcl ".*, "xha ".*, "xh9 ".*, "xsk ".*, "xul ".*, "xsh ".*, "xpk ".*, "xtb ".*, "xmb ".*,
+    "6bs ".*, "6cb ".*, "6cs ".*, "6hb ".*, "6hx ".*, "6l7 ".*, "6lb ".*, "6ls ".*,
+    "6lw ".*, "6lx ".*, "6mx ".*, "6rx ".*, "6s7 ".*, "6sb ".*, "6ss ".*, "6sw ".*,
+    "6ws ".*, "72a ".*, "72h ".*, "7ar ".*, "7ax ".*, "7b7 ".*, "7b8 ".*, "7ba ".*,
+    "7bk ".*, "7bl ".*, "7br ".*, "7bs ".*, "7bt ".*, "7bw ".*, "7cl ".*, "7cm ".*,
+    "7cr ".*, "7cs ".*, "7dg ".*, "7di ".*, "7fb ".*, "7fc ".*, "7fl ".*, "7ga ".*,
+    "7gd ".*, "7gi ".*, "7gl ".*, "7gm ".*, "7gs ".*, "7gw ".*, "7h7 ".*, "7ha ".*,
+    "7ja ".*, "7kr ".*, "7la ".*, "7ls ".*, "7lw ".*, "7m7 ".*, "7ma ".*, "7mp ".*,
+    "7mt ".*, "7o7 ".*, "7p7 ".*, "7pa ".*, "7pi ".*, "7qr ".*, "7qs ".*, "7s7 ".*,
+    "7s8 ".*, "7sb ".*, "7sc ".*, "7sm ".*, "7sp ".*, "7sr ".*, "7ss ".*, "7st ".*,
+    "7ta ".*, "7tk ".*, "7tr ".*, "7ts ".*, "7tw ".*, "7vo ".*, "7wa ".*, "7wb ".*,
+    "7wc ".*, "7wd ".*, "7wh ".*, "7wn ".*, "7ws ".*, "7xf ".*, "7yw ".*, "amb ".*,
+    "amc ".*, "amd ".*, "ame ".*, "amf ".*, "amu ".*, "bab ".*, "bac ".*, "bad ".*,
+    "bae ".*, "baf ".*, "ci3 ".*, "cm1 ".*, "cm2 ".*, "cm3 ".*, "drb ".*, "drc ".*,
+    "drd ".*, "dre ".*, "drf ".*, "jew ".*, "neb ".*, "ned ".*, "nee ".*, "nef ".*,
+    "neg ".*, "obb ".*, "obc ".*, "obd ".*, "obe ".*, "obf ".*, "pab ".*, "pac ".*,
+    "pad ".*, "pae ".*, "paf ".*, "rin ".*, "uap ".*, "uar ".*, "ucl ".*, "uea ".*,
+    "uh9 ".*, "uhb ".*, "uhc ".*, "uhg ".*, "uhl ".*, "uhm ".*, "uhn ".*, "uit ".*,
+    "ukp ".*, "ula ".*, "ulb ".*, "ulc ".*, "uld ".*, "ulg ".*, "ulm ".*, "ult ".*,
+    "umb ".*, "umc ".*, "umg ".*, "uml ".*, "ung ".*, "uow ".*, "upk ".*, "upl ".*,
+    "urg ".*, "urn ".*, "urs ".*, "ush ".*, "usk ".*, "utb ".*, "utc ".*, "utg ".*,
+    "uth ".*, "utp ".*, "uts ".*, "utu ".*, "uuc ".*, "uui ".*, "uul ".*, "uvb ".*,
+    "uvc ".*, "uvg ".*,
 };
 
 pub fn isElite(code: [4]u8) bool {
@@ -116,11 +121,35 @@ pub fn onSellPacket(pGame: usize, pPlayer: usize, pPacket: usize, nPacketLen: u3
     const npc_id = std.mem.readInt(u32, pkt_ptr[1..5], .little);
     const item_id = std.mem.readInt(u32, pkt_ptr[5..9], .little);
 
-    const pNpc = d2.getServerUnit(@ptrFromInt(pGame), 1, npc_id) orelse return 0;
-    const pItem = d2.getServerUnit(@ptrFromInt(pGame), 4, item_id) orelse return 0;
+    const pNpc = d2.getServerUnit(@ptrFromInt(pGame), 1, npc_id) orelse {
+        logMsg("Sell Packet 0x33: NPC unit {d} not found in game\n", .{npc_id});
+        return 0;
+    };
+    const pItem = d2.getServerUnit(@ptrFromInt(pGame), 4, item_id) orelse {
+        logMsg("Sell Packet 0x33: Item unit {d} not found in game\n", .{item_id});
+        return 0;
+    };
+
+    var item_code: [4]u8 = [_]u8{ ' ', ' ', ' ', ' ' };
+    const GetItemTxtFn = *const fn (u32) callconv(.winapi) ?*anyopaque;
+    const getTxt: GetItemTxtFn = @ptrFromInt(d2.ADDR_GET_ITEM_TEXT);
+    if (getTxt(pItem.dwTxtFileNo)) |raw_txt| {
+        const txt_bytes: [*]const u8 = @ptrCast(raw_txt);
+        @memcpy(&item_code, txt_bytes[0x80..0x84]);
+    }
+
+    var quality: u32 = 0;
+    if (pItem.pUnitData) |pData| {
+        const pItemData: *const d2.ItemData = @ptrCast(@alignCast(pData));
+        quality = pItemData.dwQuality;
+    }
 
     // Check NPC filter
     if (g_config.only_akara and pNpc.dwTxtFileNo != 148) {
+        logMsg("Sell Packet 0x33: NPC {d} (txt {d}) skipped (OnlyAkara=1, not Akara)\n", .{
+            npc_id,
+            pNpc.dwTxtFileNo,
+        });
         return 0; // Not Akara, proceed with normal sell
     }
 
@@ -131,31 +160,27 @@ pub fn onSellPacket(pGame: usize, pPlayer: usize, pPacket: usize, nPacketLen: u3
         is_eligible = true;
     } else {
         // Production phase: must be unique (quality == 7) and elite/jewelry
-        if (pItem.pUnitData) |pData| {
-            const pItemData: *const d2.ItemData = @ptrCast(@alignCast(pData));
-            if (pItemData.dwQuality == 7) {
-                // Get item code from class ID
-                const GetItemTxtFn = *const fn (u32) callconv(.winapi) ?*anyopaque;
-                const getTxt: GetItemTxtFn = @ptrFromInt(d2.ADDR_GET_ITEM_TEXT);
-                if (getTxt(pItem.dwTxtFileNo)) |raw_txt| {
-                    const txt_bytes: [*]const u8 = @ptrCast(raw_txt);
-                    var code: [4]u8 = undefined;
-                    @memcpy(&code, txt_bytes[0x80..0x84]);
-                    if (isElite(code)) {
-                        is_eligible = true;
-                    }
-                }
-            }
+        if (quality == 7 and isElite(item_code)) {
+            is_eligible = true;
         }
     }
 
     if (!is_eligible) {
+        logMsg("Sell Packet 0x33: Item {d} (txt {d}, code '{s}', quality {d}) not eligible (test_mode={d})\n", .{
+            item_id,
+            pItem.dwTxtFileNo,
+            item_code,
+            quality,
+            @as(u32, if (g_config.test_mode) 1 else 0),
+        });
         return 0; // Not eligible, let original handler run
     }
 
-    logMsg("Triggered rune exchange! (NPC={d}, Item={d}, ClassId={d})\n", .{
+    logMsg("Triggered rune exchange! (NPC={d}, txt={d}, Item={d}, code='{s}', ClassId={d})\n", .{
         npc_id,
+        pNpc.dwTxtFileNo,
         item_id,
+        item_code,
         pItem.dwTxtFileNo,
     });
 

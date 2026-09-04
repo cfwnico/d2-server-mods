@@ -12,10 +12,10 @@ extern "kernel32" fn GetFileAttributesA(lpFileName: [*:0]const u8) callconv(.win
 
 pub const Config = struct {
     enabled: bool = true,
-    test_mode: bool = true,
-    only_akara: bool = true,
+    test_mode: bool = false,
+    only_akara: bool = false,
     min_rune: u32 = 18,
-    max_rune: u32 = 33,
+    max_rune: u32 = 30,
     weights: [33]u32 = [_]u32{
         // 1# ~ 17# (Low to Mid runes)
         5000, // 1 El
@@ -61,9 +61,9 @@ pub const Config = struct {
 
         // Check possible paths
         const paths = [_][*:0]const u8{
-            ".\\rune_exchange.ini",
             "Z:\\mods\\rune_exchange.ini",
             "/mods/rune_exchange.ini",
+            ".\\rune_exchange.ini",
             "rune_exchange.ini",
         };
 
@@ -76,10 +76,10 @@ pub const Config = struct {
         }
 
         cfg.enabled = GetPrivateProfileIntA("Settings", "Enable", 1, ini_path) != 0;
-        cfg.test_mode = GetPrivateProfileIntA("Settings", "TestMode", 1, ini_path) != 0;
-        cfg.only_akara = GetPrivateProfileIntA("Settings", "OnlyAkara", 1, ini_path) != 0;
+        cfg.test_mode = GetPrivateProfileIntA("Settings", "TestMode", 0, ini_path) != 0;
+        cfg.only_akara = GetPrivateProfileIntA("Settings", "OnlyAkara", 0, ini_path) != 0;
         cfg.min_rune = GetPrivateProfileIntA("Settings", "MinRune", 18, ini_path);
-        cfg.max_rune = GetPrivateProfileIntA("Settings", "MaxRune", 33, ini_path);
+        cfg.max_rune = GetPrivateProfileIntA("Settings", "MaxRune", 30, ini_path);
 
         // Sanitize bounds
         if (cfg.min_rune < 1) cfg.min_rune = 1;
