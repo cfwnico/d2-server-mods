@@ -74,6 +74,7 @@ pub const ADDR_ITEMS_REMOVE_AND_FREE: usize = 0x00557FD0;
 pub const ADDR_GET_ITEM_CLASSID_BY_CODE: usize = 0x00633680;
 pub const ADDR_GET_ITEM_TEXT: usize = 0x006335F0;
 pub const ADDR_GENERATE_NPC_ITEM: usize = 0x00576330;
+pub const ADDR_SEND_ITEM_TO_STORE: usize = 0x0053D330;
 
 /// Hook installation helper: patches the pointer at `0x006E0EB0`
 pub fn hookPacket0x33(new_handler: *const anyopaque) bool {
@@ -209,4 +210,32 @@ pub fn generateNpcItem(pNpc: *UnitAny, pGame: ?*anyopaque, itemCode: u32, itemLe
         : .{ .ecx = true, .edx = true, .memory = true }
     );
     return if (raw == 0) null else @ptrFromInt(raw);
+}
+
+/// Send item to client NPC store page (Packet 0x9D action 0x13: ITEMACTION_TO_STORE)
+/// D2GAME_SendItemToStore_53D330:
+/// ECX = pClient, EDX = pNpc, Stack: [pItem, dwFlags]
+pub fn sendItemToStore(pPlayer: usize, pNpc: *UnitAny, pItem: *UnitAny) void {
+    const pPlayerUnit: *const UnitAny = @ptrFromInt(pPlayer);
+    const pUnitData = pPlayerUnit.pUnitData orelse return;
+    const pClient: usize = @as(*align(1) const usize, @ptrFromInt(@intFromPtr(pUnitData) + 0x9C)).*;
+    if (pClient == 0) return;
+
+    var buf = [3]u32{
+        @intFromPtr(pItem),
+        0, // dwFlags = 0
+        ADDR_SEND_ITEM_TO_STORE,
+    };
+    asm volatile (
+        \\pushl 4(%[buf])
+        \\pushl (%[buf])
+        \\movl %[client], %%ecx
+        \\movl %[npc], %%edx
+        \\call *8(%[buf])
+        :
+        : [buf] "r" (&buf),
+          [client] "r" (pClient),
+          [npc] "r" (@intFromPtr(pNpc)),
+        : .{ .eax = true, .ecx = true, .edx = true, .memory = true }
+    );
 }

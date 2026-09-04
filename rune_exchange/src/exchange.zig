@@ -197,14 +197,18 @@ pub fn onSellPacket(pGame: usize, pPlayer: usize, pPacket: usize, nPacketLen: u3
             r.dwUnitId,
         });
 
-        // Step 4: Send in-game reminder message to player
+        // Step 4: Actively push Packet 0x9D (ITEMACTION_TO_STORE) to the client so it appears in the misc page immediately
+        d2.sendItemToStore(pPlayer, pNpc, r);
+        logMsg("Sent Packet 0x9D (ITEMACTION_TO_STORE) for Rune unit {d} to client shop UI!\n", .{r.dwUnitId});
+
+        // Step 5: Send in-game reminder message to player
         var msg_buf: [128]u8 = undefined;
         const msg = std.fmt.bufPrint(&msg_buf, "[Rune Exchange] Rune #{d} spawned in shop! Remember to buy it back.", .{
             picked.rune_id,
         }) catch "[Rune Exchange] Rune spawned in shop! Remember to buy it back.";
         d2.sendServerMessage(pPlayer, msg);
     } else {
-        logMsg("ERROR: Failed to generate Rune #{d} — NPC shop is completely full!\n", .{picked.rune_id});
+        logMsg("ERROR: Failed to generate Rune #{d} — NPC misc page is completely full!\n", .{picked.rune_id});
         d2.sendServerMessage(pPlayer, "[Rune Exchange] Shop is full! Please buy some items to free space.");
     }
 
