@@ -10,6 +10,72 @@ extern "kernel32" fn GetPrivateProfileIntA(
 
 extern "kernel32" fn GetFileAttributesA(lpFileName: [*:0]const u8) callconv(.winapi) u32;
 
+const FILETIME = extern struct {
+    dwLowDateTime: u32,
+    dwHighDateTime: u32,
+};
+
+const WIN32_FILE_ATTRIBUTE_DATA = extern struct {
+    dwFileAttributes: u32,
+    ftCreationTime: FILETIME,
+    ftLastAccessTime: FILETIME,
+    ftLastWriteTime: FILETIME,
+    nFileSizeHigh: u32,
+    nFileSizeLow: u32,
+};
+
+extern "kernel32" fn GetFileAttributesExA(
+    lpFileName: [*:0]const u8,
+    fInfoLevelId: u32,
+    lpFileInformation: *WIN32_FILE_ATTRIBUTE_DATA,
+) callconv(.winapi) win.BOOL;
+
+// Module-level cached state for hot-reload detection
+var g_ini_path: [*:0]const u8 = ".\\rune_exchange.ini";
+var g_ini_path_resolved: bool = false;
+var g_last_write_low: u32 = 0;
+var g_last_write_high: u32 = 0;
+
+fn resolveIniPath() [*:0]const u8 {
+    if (g_ini_path_resolved) return g_ini_path;
+
+    const paths = [_][*:0]const u8{
+        "Z:\\mods\\rune_exchange.ini",
+        "/mods/rune_exchange.ini",
+        ".\\rune_exchange.ini",
+        "rune_exchange.ini",
+    };
+
+    for (paths) |p| {
+        const attr = GetFileAttributesA(p);
+        if (attr != 0xFFFFFFFF) {
+            g_ini_path = p;
+            break;
+        }
+    }
+
+    g_ini_path_resolved = true;
+    return g_ini_path;
+}
+
+/// Check if the INI file has been modified since last load.
+/// Returns a new Config if changed, null if unchanged.
+pub fn reloadIfChanged() ?Config {
+    const path = resolveIniPath();
+    var data: WIN32_FILE_ATTRIBUTE_DATA = undefined;
+    if (GetFileAttributesExA(path, 0, &data) == .FALSE) return null;
+
+    if (data.ftLastWriteTime.dwLowDateTime == g_last_write_low and
+        data.ftLastWriteTime.dwHighDateTime == g_last_write_high)
+    {
+        return null; // File not modified
+    }
+
+    g_last_write_low = data.ftLastWriteTime.dwLowDateTime;
+    g_last_write_high = data.ftLastWriteTime.dwHighDateTime;
+    return Config.loadFromPath(path);
+}
+
 pub const Config = struct {
     enabled: bool = true,
     test_mode: bool = false,
@@ -56,24 +122,18 @@ pub const Config = struct {
     total_weight: u32 = 0,
 
     pub fn load() Config {
-        var cfg = Config{};
-        var ini_path: [*:0]const u8 = ".\\rune_exchange.ini";
-
-        // Check possible paths
-        const paths = [_][*:0]const u8{
-            "Z:\\mods\\rune_exchange.ini",
-            "/mods/rune_exchange.ini",
-            ".\\rune_exchange.ini",
-            "rune_exchange.ini",
-        };
-
-        for (paths) |p| {
-            const attr = GetFileAttributesA(p);
-            if (attr != 0xFFFFFFFF) {
-                ini_path = p;
-                break;
-            }
+        const path = resolveIniPath();
+        // Update cached write time on initial load
+        var data: WIN32_FILE_ATTRIBUTE_DATA = undefined;
+        if (GetFileAttributesExA(path, 0, &data) != .FALSE) {
+            g_last_write_low = data.ftLastWriteTime.dwLowDateTime;
+            g_last_write_high = data.ftLastWriteTime.dwHighDateTime;
         }
+        return loadFromPath(path);
+    }
+
+    fn loadFromPath(ini_path: [*:0]const u8) Config {
+        var cfg = Config{};
 
         cfg.enabled = GetPrivateProfileIntA("Settings", "Enable", 1, ini_path) != 0;
         cfg.test_mode = GetPrivateProfileIntA("Settings", "TestMode", 0, ini_path) != 0;

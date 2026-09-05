@@ -237,6 +237,38 @@ zig build
 - 根据 `ItemTypes.txt` / `misc.txt`，符文属于杂项（Page 2 Misc / 【其他】货架）。
 - **客户端同步机制**：原版暗黑 II 客户端的商店页面是客户端根据标签页独立请求的。在【装甲】或【武器】页面售卖暗金装备后，服务端正常销毁装备并结算金币，符文已安全生成并挂载在 NPC 的【其他】货架上。通过 Packet 0x26 发送系统消息提示玩家切换至【其他】页面，玩家点击【其他】标签页时，客户端发送 Page 2 请求，服务端标准流程同步货架数据，符文即刻呈现在【其他】页面上，完美兼容所有原版与 MOD 客户端。
 
+### 6.6 多线程并发安全与数据同步
+- D2GS 服务端可能为每个连入游戏客户端分配独立的逻辑处理线程。
+- 插件在 `exchange.zig` 中引入 Windows 核心 `CRITICAL_SECTION` 临界区保护，在 DLL 加载时通过 `DllMain` 自动初始化（`InitializeCriticalSection`）。
+- 每次 `onSellPacket` 触发时立即进入临界区加锁（`EnterCriticalSection`），配合 Zig 的 `defer unlock()` 保证即便中途任何分支返回，锁均能被严格释放，确保多线程并发下 INI 热重载与 PRNG 状态更新的绝对原子性。
+
+### 6.7 工业级伪随机数生成器（PRNG）与雪崩散列
+- **双重动态物理熵源**：
+  1. 调用 Win32 API `GetTickCount()` 获取操作系统毫秒级开机时间戳，利用玩家每次交互与网络封包到达的微秒/毫秒抖动引入真实物理熵；
+  2. 混合服务端 `pPlayer` 内存指针、NPC GUID 与暗金物品唯一的 `dwUnitId`。
+- **雪崩散列算法（MurmurHash3 / SplitMix32 Avalanche Mixer）**：
+  为彻底消除简单线性累加在连续物品 ID 下产生的算术步进缺陷，内部加入高质量乘法散列与多轮双向位移扰动：
+  ```zig
+  prng_state ^= GetTickCount();
+  prng_state ^= @as(u32, @truncate(pPlayer)) +% @as(u32, @truncate(npc_id)) +% item_id;
+  prng_state +%= 0x9e3779b9; // 黄金分割常数，规避零态死锁
+
+  var mix: u32 = prng_state;
+  mix ^= mix >> 16;
+  mix *%= 0x85ebca6b;
+  mix ^= mix >> 13;
+  mix *%= 0xc2b2ae35;
+  mix ^= mix >> 16;
+
+  const picked = g_config.pickRune(mix);
+  ```
+  该算法保证哪怕输入仅有 1 个 bit 变化（甚至通过修改器导入完全相同的复制装备），输出的 32 位全域数值都会发生剧烈雪崩跳跃，生成结果呈现绝对的均匀分布与不可预测性。
+
+### 6.8 INI 配置毫秒级热检测优化
+- 废弃每次封包直接发起 35+ 次 `GetPrivateProfileIntA` 磁盘 I/O 的低效设计。
+- 引入 Win32 `GetFileAttributesExA` 获取文件的 `ftLastWriteTime`，仅在文件修改时间戳变更时才调用解析器重载配置。
+- 常规运行状态下热路径仅消耗 1 次元数据比对，带来极高执行效率与零磁盘 I/O 负担。
+
 ---
 
 ## 7. 已知问题与排查修复记录
@@ -251,3 +283,19 @@ zig build
 - [x] **【已修复】装甲栏满售卖暗金装备时客户端报错崩溃 (`Unrecoverable internal error 6fb3209f, line #58`)**：
   - **根本原因**：此前尝试主动向客户端推送 Packet 0x9D Action 0x13 (`ITEMACTION_TO_STORE`)。在 1.13c 客户端逆向分析发现，当客户端当前显示【装甲】页时，接收到属于【其他】页的 0x9D 动作，其状态机在 `0x6FB33880` 解码后错误将目标 NPC 单位 (`UnitType=1`) 传递给镶嵌逻辑 `0x6FB31FF0`，触发 `cmp [edi], 4` 断言失败，抛出致命 Halt 崩溃。
   - **修复方案**：彻底移除多余的 0x9D 强制推送，符文生成在 NPC 内存货架后，由客户端在切换【其他】标签或重新对话时按原生协议安全拉取，彻底杜绝客户端崩溃。
+
+- [x] **【已修复】等权重测试下符文呈规律性递增（15#->16#->17#...）问题**：
+  - **根本原因**：旧版随机数生成仅使用 `seed_counter +%= 0x19660d + pPlayer + npc_id + item_id` 纯加法。在暗黑2中连续生成的物品或 ATMA 导入装备具有连续或固定的 `dwUnitId`，当权重均等时，每次售卖产生的线性增量模总权重恰好形成固定步长，导致选取的区间每 1~2 件装备刚好推进一个号段。
+  - **修复方案**：全面重构随机数生成模块，引入系统物理毫秒时钟（`GetTickCount()`）与 MurmurHash3 / SplitMix32 乘法雪崩散列器，即使导入完全同 ID 的暗金装备，抽取结果也完全均匀随机，并在日志输出当前交易的随机种子 `(seed: 0x...)` 供审计。
+
+- [x] **【已优化】多线程并发安全与数据竞争隐患**：
+  - **解决方案**：引入 Win32 `CRITICAL_SECTION` 临界区对交易封包入口、配置热重载与随机状态进行独占加锁，杜绝并发竞争。
+
+- [x] **【已优化】INI 频繁读取的磁盘 I/O 开销**：
+  - **解决方案**：通过 `GetFileAttributesExA` 缓存文件写入时间戳，改用按需检测式热重载，消除了每单交易 35 次 Win32 INI 读取的系统调用。
+
+- [x] **【已优化】精英底材检索性能提升（O(n) -> O(log n)）**：
+  - **解决方案**：将 170 个 4 字节精英装备代码转换为预先排序的 `u32` 数组，由逐项字符串遍历优化为 7~8 次比较的二分查找。
+
+- [x] **【排查备忘】Linux / Wine 容器环境热更新注意事项**：
+  - **排查记录**：在 Kubernetes / Wine 环境下，游戏服务端启动时通过 `mmap` 将 DLL 载入内存。直接在宿主机 `/home/cfwd2/d2mods/` 覆盖 DLL 仅解除原有磁盘 inode，容器进程仍在执行标记为 `(deleted)` 的旧内存代码。更新 DLL 后**必须执行 `kubectl rollout restart deployment/d2gs-1-14d -n realm` 重启游戏容器**，新 DLL 才会真正载入生效。

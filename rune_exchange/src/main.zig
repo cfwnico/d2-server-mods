@@ -35,6 +35,7 @@ pub export fn DllMain(hinst: win.HINSTANCE, reason: win.DWORD, reserved: win.LPV
     _ = reserved;
 
     if (reason == 1) { // DLL_PROCESS_ATTACH
+        exchange.initLock();
         exchange.logMsg("Initializing Rune Exchange Mod...\n", .{});
         exchange.g_config = cfg.Config.load();
 
