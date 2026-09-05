@@ -105,18 +105,38 @@ pub fn isQuestItem(classId: u32, fileIndex: u32) bool {
     return false;
 }
 
-/// Check if the unique item naturally rolls variable sockets in UniqueItems.txt
-pub fn isVariableSocketsUnique(fileIndex: u32) bool {
+pub const SocketRange = struct {
+    min: u32,
+    max: u32,
+};
+
+/// Get the variable socket range [min, max] for naturally variable-socket uniques
+pub fn getVariableSocketsRange(fileIndex: u32) ?SocketRange {
     return switch (fileIndex) {
-        291, // Djinnslayer (1~2)
-        299, // Tomb Reaver (1~3)
-        314, // Runemaster (3~5)
-        345, // Crown of Ages (1~2)
-        372, // Heaven's Light (1~3)
-        380, // Giantskull (1~2)
-        391, // Headhunter's Glory (1~3)
-        => true,
-        else => false,
+        290 => .{ .min = 1, .max = 2 }, // Djinnslayer (1~2)
+        298 => .{ .min = 1, .max = 3 }, // Tomb Reaver (1~3)
+        313 => .{ .min = 3, .max = 5 }, // Runemaster (3~5)
+        344 => .{ .min = 1, .max = 2 }, // Crown of Ages (1~2)
+        371 => .{ .min = 1, .max = 3 }, // Heaven's Light (1~3)
+        379 => .{ .min = 1, .max = 2 }, // Giantskull (1~2)
+        390 => .{ .min = 1, .max = 3 }, // Headhunter's Glory (1~3)
+        else => null,
+    };
+}
+
+/// Get the naturally fixed socket count for fixed-socket uniques
+pub fn getFixedSockets(fileIndex: u32) ?u32 {
+    return switch (fileIndex) {
+        157 => 2, // Blade of Ali Baba (2)
+        175 => 3, // Hone Sundan (3)
+        192 => 2, // Whichwild String (2)
+        213 => 2, // Spiritforge (2)
+        221 => 3, // Black Hades (3)
+        225 => 2, // Mosers Blessed Circle (2)
+        328 => 2, // Hellrack (2)
+        363 => 1, // Spike Thorn (1)
+        387 => 2, // Bonehew (2)
+        else => null,
     };
 }
 
@@ -246,17 +266,18 @@ fn tryUniqueReroll(pGame: usize, pPlayer: usize) bool {
         }
     }
 
-    const is_var_socket = isVariableSocketsUnique(dwFileIndex);
+    const var_socket_range = getVariableSocketsRange(dwFileIndex);
+    const fixed_sockets = getFixedSockets(dwFileIndex);
 
     if (g_config.debug_log) {
-        logMsg("Triggering Unique Reroll: FileIndex={d}, TxtFileNo={d}, ilvl={d}, Ethereal={}, Sockets={d}, Gems={d}, VarSockets={}\n", .{
+        logMsg("Triggering Unique Reroll: FileIndex={d}, TxtFileNo={d}, ilvl={d}, Ethereal={}, Sockets={d}, Gems={d}, HasVarSockets={}\n", .{
             dwFileIndex,
             dwTxtFileNo,
             dwItemLevel,
             bEthereal,
             oldSockets,
             gem_count,
-            is_var_socket,
+            var_socket_range != null,
         });
     }
 
@@ -318,21 +339,35 @@ fn tryUniqueReroll(pGame: usize, pPlayer: usize) bool {
     }
 
     // 3. Handle Sockets & Socketed Items
-    var newSockets = d2.getUnitStat(newItem, 194, 0);
+    var targetSockets: u32 = 0;
 
-    if (!is_var_socket and oldSockets > 0 and newSockets == 0) {
-        // Quest punched socket (Larzuk/SOJ): preserve the fixed 1 socket
-        d2.setItemSockets(newItem, oldSockets);
-        newSockets = oldSockets;
+    if (var_socket_range) |range| {
+        // Naturally variable socket unique (Crown of Ages, Tomb Reaver, etc.):
+        // Explicitly roll socket count within [min, max]
+        const count = range.max - range.min + 1;
+        const seed_mix = (t_now *% 1103515245 +% 12345) ^ (g_seed_counter *% 31);
+        targetSockets = range.min + (seed_mix % count);
+    } else if (fixed_sockets) |fixed_cnt| {
+        // Naturally fixed socket unique (Hone Sundan, Bonehew, Hellrack, etc.)
+        targetSockets = fixed_cnt;
+    } else if (oldSockets > 0) {
+        // Non-naturally socketed unique (e.g. Shako, Death's Fathom, etc.) punched by Larzuk / SOJ:
+        // Preserve the punched socket!
+        targetSockets = oldSockets;
     }
 
-    // Ensure newItem has an Inventory container if it has sockets
-    if (newItem.pInventory == null and newSockets > 0) {
-        _ = d2.createInventory(null, newItem);
+    if (targetSockets > 0) {
+        d2.setItemSockets(newItem, targetSockets);
+        newData.dwItemFlags |= 0x00000800; // ITEMFLAG_SOCKETED (strictly ensure bit 11 is set for client sync)
+        if (newItem.pInventory == null) {
+            _ = d2.createInventory(null, newItem);
+        }
+    } else {
+        newData.dwItemFlags &= ~@as(u32, 0x00000800);
     }
 
     // Calculate how many socketed items to retain
-    const keep_gems_count = @min(gem_count, @as(usize, newSockets));
+    const keep_gems_count = @min(gem_count, @as(usize, targetSockets));
 
     // Detach all gems from old item's inventory so destroying old item won't free them
     if (oldItem.pInventory) |oldInv| {
@@ -390,9 +425,9 @@ fn tryUniqueReroll(pGame: usize, pPlayer: usize) bool {
     d2.sendServerMessage(pPlayer, msg, 0x02); // 0x02 = Green
 
     if (g_config.debug_log) {
-        logMsg("Reroll SUCCESS: {s} (NewSockets={d}, RetainedGems={d})\n", .{
+        logMsg("Reroll SUCCESS: {s} (TargetSockets={d}, RetainedGems={d})\n", .{
             item_name,
-            newSockets,
+            targetSockets,
             keep_gems_count,
         });
     }
